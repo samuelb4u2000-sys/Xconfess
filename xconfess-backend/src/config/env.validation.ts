@@ -510,4 +510,22 @@ export const envValidationSchema = Joi.object({
   INTEGRITY_CHECK_MAX_TIMEOUT_MS: Joi.number().min(100).max(60000).default(30000),
   INTEGRITY_CHECK_DEFAULT_LIMIT: Joi.number().min(1).max(200).default(50),
   INTEGRITY_CHECK_MAX_LIMIT: Joi.number().min(1).max(1000).default(200),
+
+  // ── Bounded statement timeouts for high-cost database operations (#185) ─────
+  DB_STATEMENT_TIMEOUT_MS: Joi.number()
+    .min(100)
+    .max(60000)
+    .default(5000)
+    .messages({
+      'number.max':
+        'DB_STATEMENT_TIMEOUT_MS must not exceed 60000 ms (1 minute).',
+    }),
+  DB_STATEMENT_TIMEOUT_MAX_MS: Joi.number()
+    .min(100)
+    .max(120000)
+    .default(30000)
+    .messages({
+      'number.max':
+        'DB_STATEMENT_TIMEOUT_MAX_MS must not exceed 120000 ms (2 minutes).',
+    }),
 }).options({ allowUnknown: true, abortEarly: false });

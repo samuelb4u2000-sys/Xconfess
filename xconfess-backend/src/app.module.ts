@@ -8,6 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { getTypeOrmConfig } from './config/database.config';
 import { envValidationSchema } from './config/env.validation';
 import appConfig from './config/app.config';
+import queryTimeoutConfig from './config/query-timeout.config';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfessionModule } from './confession/confession.module';
@@ -53,7 +54,13 @@ import { RateLimitGuard } from './rate-limit/rate-limit.guard';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      load: [throttleConfig, appConfig, exportConfig, integrityConfig],
+      load: [
+        throttleConfig,
+        appConfig,
+        exportConfig,
+        integrityConfig,
+        queryTimeoutConfig,
+      ],
       validationSchema: envValidationSchema,
       validationOptions: { abortEarly: false },
     }),

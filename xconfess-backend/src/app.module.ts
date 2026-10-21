@@ -11,6 +11,7 @@ import appConfig from './config/app.config';
 import queryTimeoutConfig from './config/query-timeout.config';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { CapabilitiesModule } from './auth/capabilities/capabilities.module';
 import { ConfessionModule } from './confession/confession.module';
 import { ConfessionDraftModule } from './confession-draft/confession-draft.module';
 import { SearchDiscoveryModule } from './search-discovery/search-discovery.module';
@@ -146,6 +147,7 @@ import { RateLimitGuard } from './rate-limit/rate-limit.guard';
     AnalyticsModule,
     UserModule,
     AuthModule,
+    CapabilitiesModule,
     AccountMergeModule,
     ConfessionModule,
     ConfessionDraftModule,

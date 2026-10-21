@@ -24,6 +24,15 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { StepUpGuard } from '../auth/guards/step-up.guard';
+import { CapabilityGuard } from '../auth/capabilities/capability.guard';
+import { RequireCapability } from '../auth/capabilities/require-capability.decorator';
+import {
+  CAPABILITY_MANAGE_USERS,
+  CAPABILITY_MODERATE_CONTENT,
+  CAPABILITY_READ_AUDIT_LOG,
+  CAPABILITY_RUN_DIAGNOSTICS,
+  CAPABILITY_VIEW_ANALYTICS,
+} from '../auth/capabilities/capability.constants';
 import { AdminService } from './services/admin.service';
 import { ModerationService } from './services/moderation.service';
 import { ModerationTemplateService } from '../comment/moderation-template.service';
@@ -131,7 +140,7 @@ function parseAuditAction(value?: string): AuditActionType | undefined {
 @ApiTags('Admin')
 @ApiBearerAuth()
 @Controller('admin')
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard, AdminGuard, CapabilityGuard)
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
@@ -146,6 +155,7 @@ export class AdminController {
 
   // Reports
   @Get('reports')
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'List reports with optional filters and cursor pagination' })
   @ApiQuery({
     name: 'status',
@@ -213,6 +223,7 @@ export class AdminController {
   }
 
   @Get('reports/stats')
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'Get report queue health stats' })
   @ApiResponse({
     status: 200,
@@ -230,6 +241,7 @@ export class AdminController {
   }
 
   @Get('reports/:id')
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'Get a single report by ID' })
   @ApiParam({ name: 'id', description: 'Report UUID' })
   @ApiResponse({ status: 200, description: 'Report record.' })
@@ -240,6 +252,7 @@ export class AdminController {
 
   @Patch('reports/:id/resolve')
   @HttpCode(HttpStatus.OK)
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'Resolve a report (admin action)' })
   @ApiParam({ name: 'id', description: 'Report UUID' })
   @ApiBody({
@@ -268,6 +281,7 @@ export class AdminController {
 
   @Patch('reports/:id/dismiss')
   @HttpCode(HttpStatus.OK)
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'Dismiss a report without taking action' })
   @ApiParam({ name: 'id', description: 'Report UUID' })
   @ApiResponse({ status: 200, description: 'Report dismissed.' })
@@ -287,6 +301,7 @@ export class AdminController {
 
   @Patch('reports/bulk-resolve')
   @HttpCode(HttpStatus.OK)
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'Bulk-resolve multiple reports at once' })
   @ApiBody({
     schema: {
@@ -318,6 +333,7 @@ export class AdminController {
   @UseGuards(StepUpGuard)
   @HttpCode(HttpStatus.OK)
   @UseGuards(StepUpGuard)
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'Admin-delete a confession' })
   @ApiParam({ name: 'id', description: 'Confession UUID' })
   @ApiBody({ schema: { example: { reason: 'Violates community standards.' } } })
@@ -349,6 +365,7 @@ export class AdminController {
   @UseGuards(StepUpGuard)
   @HttpCode(HttpStatus.OK)
   @UseGuards(StepUpGuard)
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'Hide a confession from public view (admin only)' })
   @ApiParam({ name: 'id', description: 'Confession UUID' })
   @ApiResponse({ status: 200, description: 'Confession hidden.' })
@@ -372,6 +389,7 @@ export class AdminController {
 
   @Patch('confessions/:id/unhide')
   @HttpCode(HttpStatus.OK)
+  @RequireCapability(CAPABILITY_MODERATE_CONTENT)
   @ApiOperation({ summary: 'Unhide a confession (admin only)' })
   @ApiParam({ name: 'id', description: 'Confession UUID' })
   @ApiResponse({ status: 200, description: 'Confession unhidden.' })
@@ -385,6 +403,7 @@ export class AdminController {
 
   // Users
   @Get('users/search')
+  @RequireCapability(CAPABILITY_MANAGE_USERS)
   @ApiOperation({ summary: 'Search users by username with cursor pagination' })
   @ApiQuery({ name: 'q', description: 'Search query', example: 'alice' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
@@ -417,6 +436,7 @@ export class AdminController {
   }
 
   @Get('users/:id/history')
+  @RequireCapability(CAPABILITY_MANAGE_USERS)
   async getUserHistory(@Param('id') id: string) {
     return this.adminService.getUserHistory(parseInt(id, 10));
   }
@@ -436,6 +456,7 @@ export class AdminController {
   @UseGuards(StepUpGuard)
   @HttpCode(HttpStatus.OK)
   @UseGuards(StepUpGuard)
+  @RequireCapability(CAPABILITY_MANAGE_USERS)
   @ApiOperation({ summary: 'Change a user role' })
   @ApiParam({ name: 'id', description: 'User numeric ID' })
   @ApiBody({ schema: { example: { role: UserRole.MODERATOR } } })
@@ -463,6 +484,7 @@ export class AdminController {
   @UseGuards(StepUpGuard)
   @HttpCode(HttpStatus.OK)
   @UseGuards(StepUpGuard)
+  @RequireCapability(CAPABILITY_MANAGE_USERS)
   @ApiOperation({ summary: 'Ban a user account' })
   @ApiParam({ name: 'id', description: 'User numeric ID' })
   @ApiBody({
@@ -492,6 +514,7 @@ export class AdminController {
 
   @Patch('users/:id/unban')
   @HttpCode(HttpStatus.OK)
+  @RequireCapability(CAPABILITY_MANAGE_USERS)
   @ApiOperation({ summary: 'Lift a user ban' })
   @ApiParam({ name: 'id', description: 'User numeric ID' })
   @ApiResponse({ status: 200, description: 'User unbanned.' })
@@ -540,6 +563,7 @@ export class AdminController {
 
   // Stellar diagnostics (Issue #1119)
   @Get('stellar/diagnostics')
+  @RequireCapability(CAPABILITY_RUN_DIAGNOSTICS)
   @ApiOperation({
     summary: 'Stellar network and contract diagnostics with Horizon liveness ping',
     description:
@@ -587,6 +611,7 @@ export class AdminController {
   }
   // Analytics
   @Get('analytics')
+  @RequireCapability(CAPABILITY_VIEW_ANALYTICS)
   @ApiOperation({ summary: 'Get platform analytics (optionally date-bounded)' })
   @ApiQuery({
     name: 'startDate',
@@ -623,6 +648,7 @@ export class AdminController {
 
   // Audit Logs
   @Get('audit-logs')
+  @RequireCapability(CAPABILITY_READ_AUDIT_LOG)
   @ApiOperation({ summary: 'Query the admin audit log' })
   @ApiQuery({
     name: 'adminId',
@@ -756,6 +782,7 @@ export class AdminController {
    * @param windowMinutes  Lookback window in minutes for recent errors (default 30)
    */
   @Get('diagnostics/bundle')
+  @RequireCapability(CAPABILITY_RUN_DIAGNOSTICS)
   @ApiOperation({
     summary: 'Generate incident diagnostics bundle',
     description:
@@ -860,6 +887,7 @@ export class AdminController {
   }
 
   @Get('integrity/report')
+  @RequireCapability(CAPABILITY_RUN_DIAGNOSTICS)
   @ApiOperation({
     summary: 'Generate cross-domain data integrity report',
     description:

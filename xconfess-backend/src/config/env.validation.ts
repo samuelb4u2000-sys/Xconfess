@@ -528,4 +528,30 @@ export const envValidationSchema = Joi.object({
       'number.max':
         'DB_STATEMENT_TIMEOUT_MAX_MS must not exceed 120000 ms (2 minutes).',
     }),
+
+  // ── Route-specific request/response size budgets (#181) ────────────────────
+  REQUEST_DEFAULT_MAX_BYTES: Joi.number()
+    .min(1024)
+    .max(1048576)
+    .default(102400)
+    .messages({
+      'number.max':
+        'REQUEST_DEFAULT_MAX_BYTES must not exceed 1048576 bytes (1 MiB).',
+    }),
+  REQUEST_SIZE_LIMITS: Joi.string()
+    .allow('')
+    .pattern(/^\s*\{.*\}\s*$/, {
+      name: 'requestSizeLimits',
+      description:
+        'REQUEST_SIZE_LIMITS must be a JSON object of budget name -> bytes.',
+    })
+    .optional(),
+  REQUEST_MAX_NESTING_DEPTH: Joi.number()
+    .min(1)
+    .max(32)
+    .default(8)
+    .messages({
+      'number.max':
+        'REQUEST_MAX_NESTING_DEPTH must not exceed 32 levels of nesting.',
+    }),
 }).options({ allowUnknown: true, abortEarly: false });

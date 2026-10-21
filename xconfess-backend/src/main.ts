@@ -135,7 +135,9 @@ async function bootstrap() {
   app.use(requestCancellationMiddleware.use.bind(requestCancellationMiddleware));
 
   // Apply targeted limits before Nest validation pipes and controller code.
-  configureRequestBodyParsing(app);
+  // The configured budgets (issue #181) are applied when a ConfigService is
+  // available; the built-in defaults are used otherwise.
+  configureRequestBodyParsing(app, configService);
 
   app.enableShutdownHooks();
 

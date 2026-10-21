@@ -26,6 +26,7 @@ import { AdminGuard } from '../auth/admin.guard';
 import { StepUpGuard } from '../auth/guards/step-up.guard';
 import { CapabilityGuard } from '../auth/capabilities/capability.guard';
 import { RequireCapability } from '../auth/capabilities/require-capability.decorator';
+import { ResponseSizeBudget } from '../common/interceptors/response-size.interceptor';
 import {
   CAPABILITY_MANAGE_USERS,
   CAPABILITY_MODERATE_CONTENT,
@@ -156,6 +157,7 @@ export class AdminController {
   // Reports
   @Get('reports')
   @RequireCapability(CAPABILITY_MODERATE_CONTENT)
+  @ResponseSizeBudget(1024 * 1024)
   @ApiOperation({ summary: 'List reports with optional filters and cursor pagination' })
   @ApiQuery({
     name: 'status',
@@ -217,7 +219,9 @@ export class AdminController {
       type,
       start,
       end,
-      parseInt(limit || '20', 10),
+      // Issue #181: the page size is bounded so a single request cannot ask
+      // for an arbitrarily large result set.
+      Math.min(Math.max(parseInt(limit || '20', 10) || 20, 1), 100),
       cursor,
     );
   }
@@ -612,6 +616,7 @@ export class AdminController {
   // Analytics
   @Get('analytics')
   @RequireCapability(CAPABILITY_VIEW_ANALYTICS)
+  @ResponseSizeBudget(1024 * 1024)
   @ApiOperation({ summary: 'Get platform analytics (optionally date-bounded)' })
   @ApiQuery({
     name: 'startDate',
@@ -649,6 +654,7 @@ export class AdminController {
   // Audit Logs
   @Get('audit-logs')
   @RequireCapability(CAPABILITY_READ_AUDIT_LOG)
+  @ResponseSizeBudget(2 * 1024 * 1024)
   @ApiOperation({ summary: 'Query the admin audit log' })
   @ApiQuery({
     name: 'adminId',
@@ -729,8 +735,10 @@ export class AdminController {
       sortOrder,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      limit: parseInt(limit || '100', 10),
-      offset: parseInt(offset || '0', 10),
+      // Issue #181: bounded page size so the response stays inside the
+      // route's response budget.
+      limit: Math.min(Math.max(parseInt(limit || '100', 10) || 100, 1), 500),
+      offset: Math.max(parseInt(offset || '0', 10) || 0, 0),
     });
 
     return result;

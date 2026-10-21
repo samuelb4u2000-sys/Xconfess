@@ -109,8 +109,11 @@ export function throwIfCancelled(signal?: AbortSignal | null): void {
  * `REQUEST_CANCELLED` error instead of waiting for the work to finish.
  * The underlying task may still complete in the background — writes stay
  * consistent because they are atomic or transactional, never partial.
+ *
+ * When no signal is bound the task's promise is returned as-is, so callers
+ * keep the exact same timing as an unwrapped call.
  */
-export async function runWithCancellation<T>(
+export function runWithCancellation<T>(
   task: (signal?: AbortSignal) => Promise<T>,
   signal?: AbortSignal | null,
 ): Promise<T> {
@@ -121,7 +124,7 @@ export async function runWithCancellation<T>(
   }
 
   if (effective.aborted) {
-    throw cancellationException();
+    return Promise.reject(cancellationException());
   }
 
   let onAbort: (() => void) | undefined;
@@ -130,13 +133,11 @@ export async function runWithCancellation<T>(
     effective.addEventListener('abort', onAbort, { once: true });
   });
 
-  try {
-    return await Promise.race([task(effective), abortPromise]);
-  } finally {
+  return Promise.race([task(effective), abortPromise]).finally(() => {
     if (onAbort) {
       effective.removeEventListener('abort', onAbort);
     }
-  }
+  });
 }
 
 /**

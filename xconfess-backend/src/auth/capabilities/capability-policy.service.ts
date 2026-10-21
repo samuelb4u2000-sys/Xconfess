@@ -57,18 +57,27 @@ export class CapabilityPolicyService {
    *
    * Administrators hold every capability, so the role-to-capability mapping
    * alone answers the question — no inline role comparison is required.
+   *
+   * When several capabilities are supplied the principal needs to hold **at
+   * least one** of them (any-of semantics), which lets a route accept
+   * alternative privileges without duplicating the guard.
    */
   static hasCapability(
     principal: CapabilityPrincipal | undefined | null,
-    capability: Capability,
+    capability: Capability | Capability[],
   ): boolean {
     const role = principal?.role;
     if (!role) {
       return false;
     }
 
+    const required = Array.isArray(capability) ? capability : [capability];
+    if (required.length === 0) {
+      return true;
+    }
+
     const granted = CapabilityPolicyService.getCapabilitiesForRole(role);
-    return granted.includes(capability);
+    return required.some((entry) => granted.includes(entry));
   }
 
   /** Whether the principal is a full administrator. */
@@ -87,7 +96,7 @@ export class CapabilityPolicyService {
 
   hasCapability(
     principal: CapabilityPrincipal | undefined | null,
-    capability: Capability,
+    capability: Capability | Capability[],
   ): boolean {
     return CapabilityPolicyService.hasCapability(principal, capability);
   }

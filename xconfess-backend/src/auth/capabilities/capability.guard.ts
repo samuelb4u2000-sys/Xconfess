@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthenticatedRequest } from '../interfaces/jwt-payload.interface';
@@ -33,7 +34,12 @@ export class CapabilityGuard implements CanActivate {
 
   constructor(
     private readonly reflector: Reflector,
-    private readonly policy: CapabilityPolicyService,
+    /**
+     * The policy is resolved from the injector when it is available and falls
+     * back to the static policy otherwise, so the guard can be used in any
+     * module (and in unit tests) without extra wiring.
+     */
+    @Optional() private readonly policy?: CapabilityPolicyService,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -58,7 +64,7 @@ export class CapabilityGuard implements CanActivate {
       );
     }
 
-    const allowed = this.policy.hasCapability(user, capabilities);
+    const allowed = this.hasCapability(user, capabilities);
 
     if (!allowed) {
       throw new AppException(
@@ -69,5 +75,16 @@ export class CapabilityGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /**
+   * Resolve the capability decision through the centralized policy.
+   */
+  private hasCapability(
+    user: AuthenticatedRequest['user'],
+    capabilities: RequireCapabilityMetadata['capabilities'],
+  ): boolean {
+    const policy = this.policy ?? CapabilityPolicyService;
+    return policy.hasCapability(user, capabilities);
   }
 }

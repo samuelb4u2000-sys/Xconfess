@@ -25,6 +25,8 @@ export enum ErrorCode {
   INVALID_PARAMETER = 'INVALID_PARAMETER',
   UNPROCESSABLE_ENTITY = 'UNPROCESSABLE_ENTITY',
   REQUEST_TOO_LARGE = 'REQUEST_TOO_LARGE',
+  /** The caller went away (or cancelled) before the work completed. */
+  REQUEST_CANCELLED = 'REQUEST_CANCELLED',
 
   // --- RESOURCE ERRORS ---
   NOT_FOUND = 'NOT_FOUND',

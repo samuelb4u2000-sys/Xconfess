@@ -9,6 +9,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
 import helmet from 'helmet';
 import { RequestIdMiddleware } from './middleware/request-id.middleware';
+import { RequestCancellationMiddleware } from './middleware/request-cancellation.middleware';
 import { WebSocketAdapter } from './websocket/websocket.adapter';
 import { AppLogger } from './logger/logger.service';
 import { configureRequestBodyParsing } from './common/request-body-limits';
@@ -125,6 +126,13 @@ async function bootstrap() {
   // ── 1. Request-ID must be first so all downstream code sees it ───────────────
   const requestIdMiddleware = new RequestIdMiddleware();
   app.use(requestIdMiddleware.use.bind(requestIdMiddleware));
+
+  // ── 1b. Request cancellation (issue #182) ──────────────────────────────────
+  //    A disconnected client must not leave database queries or provider work
+  //    running. The middleware binds an AbortSignal to the async context and
+  //    aborts it when the client disconnects before the response completed.
+  const requestCancellationMiddleware = new RequestCancellationMiddleware();
+  app.use(requestCancellationMiddleware.use.bind(requestCancellationMiddleware));
 
   // Apply targeted limits before Nest validation pipes and controller code.
   configureRequestBodyParsing(app);

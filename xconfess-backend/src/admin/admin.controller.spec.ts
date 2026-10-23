@@ -13,6 +13,17 @@ import { DiagnosticsBundleService } from './services/diagnostics-bundle.service'
 import { RankingDriftService } from '../ranking/ranking-drift.service';
 import { CrossDomainIntegrityService } from './services/cross-domain-integrity.service';
 
+jest.mock(
+  '../auth/session.service',
+  () => ({ SessionService: class SessionService {} }),
+  { virtual: true },
+);
+jest.mock(
+  '../ranking/ranking-drift.service',
+  () => ({ RankingDriftService: class RankingDriftService {} }),
+  { virtual: true },
+);
+
 describe('AdminController', () => {
   let controller: AdminController;
   let adminService: AdminService;
@@ -26,7 +37,10 @@ describe('AdminController', () => {
     resolveReport: jest.fn(),
     dismissReport: jest.fn(),
     bulkResolveReports: jest.fn(),
-    deleteConfession: jest.fn(),
+    requestAdminActionApproval: jest.fn(),
+    findPendingAdminActionApprovals: jest.fn(),
+    approveAdminAction: jest.fn(),
+    cancelAdminActionApproval: jest.fn(),
     hideConfession: jest.fn(),
     unhideConfession: jest.fn(),
     searchUsers: jest.fn(),
@@ -199,15 +213,39 @@ describe('AdminController', () => {
   });
 
   describe('confession actions', () => {
-    it('deleteConfession calls service', async () => {
-      mockAdminService.deleteConfession.mockResolvedValue(undefined);
+    it('submits confession deletion for independent approval', async () => {
+      mockAdminService.requestAdminActionApproval.mockResolvedValue({
+        id: 'approval-1',
+        status: 'pending',
+      });
       const req = { user: { userId: '1' } } as any;
-      const res = await controller.deleteConfession(
-        'c1',
-        { reason: 'bad' },
+      const res = await controller.requestActionApproval(
+        {
+          action: 'confession.delete',
+          targetId: 'c1',
+          reason: 'Policy violation',
+        } as any,
+        1,
         req,
       );
-      expect(res.message).toContain('deleted');
+      expect(res.status).toBe('pending');
+      expect(mockAdminService.requestAdminActionApproval).toHaveBeenCalledWith(
+        'confession.delete',
+        'c1',
+        'Policy violation',
+        1,
+        req,
+      );
+    });
+
+    it('rejects the legacy direct deletion endpoint', async () => {
+      await expect(controller.deleteConfession()).rejects.toMatchObject({
+        status: 409,
+        response: expect.objectContaining({
+          code: 'ADMIN_ACTION_APPROVAL_REQUIRED',
+        }),
+      });
+      expect(mockAdminService.requestAdminActionApproval).not.toHaveBeenCalled();
     });
 
     it('hide/unhide call service', async () => {
@@ -362,7 +400,6 @@ describe('AdminController', () => {
       | 'GET/admin/reports'
       | 'POST/admin/reports/:id/resolve'
       | 'POST/admin/reports/:id/dismiss'
-      | 'DELETE/admin/confessions/:id'
       | 'POST/admin/users/:id/ban'
       | 'POST/admin/users/:id/role';
 
@@ -378,7 +415,6 @@ describe('AdminController', () => {
       'GET/admin/reports',
       'POST/admin/reports/:id/resolve',
       'POST/admin/reports/:id/dismiss',
-      'DELETE/admin/confessions/:id',
       'POST/admin/users/:id/ban',
       'POST/admin/users/:id/role',
     ];
@@ -389,7 +425,6 @@ describe('AdminController', () => {
       'GET/admin/reports': ['admin'],
       'POST/admin/reports/:id/resolve': ['admin'],
       'POST/admin/reports/:id/dismiss': ['admin'],
-      'DELETE/admin/confessions/:id': ['admin'],
       'POST/admin/users/:id/ban': ['admin'],
       'POST/admin/users/:id/role': ['admin'],
     };
@@ -428,8 +463,6 @@ describe('AdminController', () => {
             1,
             req,
           );
-        case 'DELETE/admin/confessions/:id':
-          return controller.deleteConfession(objectId, { reason: 'matrix' }, req);
         case 'POST/admin/users/:id/ban':
           return controller.banUser(
             objectId,
@@ -445,7 +478,7 @@ describe('AdminController', () => {
             req,
           );
         default:
-          throw new Error(`Unknown endpoint ${endpoint}`);
+          throw new Error('Unknown admin endpoint');
       }
     };
 
@@ -461,7 +494,6 @@ describe('AdminController', () => {
       });
       mockAdminService.resolveReport.mockResolvedValue({ id: 'r', status: 'resolved' });
       mockAdminService.dismissReport.mockResolvedValue({ id: 'r', status: 'dismissed' });
-      mockAdminService.deleteConfession.mockResolvedValue(undefined);
       mockAdminService.banUser.mockResolvedValue({ id: 2, is_active: false });
       mockAdminService.updateUserRole.mockResolvedValue({
         id: 2,
@@ -487,7 +519,6 @@ describe('AdminController', () => {
               getReportsCursor: mockAdminService.getReportsCursor.mock.calls.length,
               resolveReport: mockAdminService.resolveReport.mock.calls.length,
               dismissReport: mockAdminService.dismissReport.mock.calls.length,
-              deleteConfession: mockAdminService.deleteConfession.mock.calls.length,
               banUser: mockAdminService.banUser.mock.calls.length,
               updateUserRole: mockAdminService.updateUserRole.mock.calls.length,
             };
@@ -517,7 +548,6 @@ describe('AdminController', () => {
               getReportsCursor: mockAdminService.getReportsCursor.mock.calls.length,
               resolveReport: mockAdminService.resolveReport.mock.calls.length,
               dismissReport: mockAdminService.dismissReport.mock.calls.length,
-              deleteConfession: mockAdminService.deleteConfession.mock.calls.length,
               banUser: mockAdminService.banUser.mock.calls.length,
               updateUserRole: mockAdminService.updateUserRole.mock.calls.length,
             };
@@ -546,13 +576,6 @@ describe('AdminController', () => {
               expect(mockAdminService.dismissReport).toHaveBeenCalledWith(
                 objectId,
                 1,
-                'matrix',
-                expect.any(Object),
-              );
-              break;
-            case 'DELETE/admin/confessions/:id':
-              expect(mockAdminService.deleteConfession).toHaveBeenCalledWith(
-                objectId,
                 'matrix',
                 expect.any(Object),
               );

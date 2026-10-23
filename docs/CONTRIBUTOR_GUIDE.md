@@ -304,7 +304,7 @@ Users can opt in or out of seeing sensitive content categories. These are
   remove another member. Removing a non-member is a no-op success; removing
 yourself must go through the leave path.
 - Every transition is idempotent and records the actor, target, and reason so
-  audit trails stay consistent.
+audit trails stay consistent.
 
 ### Where Preferences Are Applied
 
